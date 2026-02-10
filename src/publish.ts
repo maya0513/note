@@ -20,7 +20,14 @@ const defaultExec: ExecFn = async (cmd: string) => {
 export const getChangedArticles = async (
   exec: ExecFn = defaultExec,
 ): Promise<string[]> => {
-  const output = await exec("git diff --name-only HEAD~1 HEAD");
+  let output: string;
+  try {
+    output = await exec("git diff --name-only HEAD~1 HEAD");
+  } catch {
+    // 初回コミットなど HEAD~1 が存在しない場合、全ファイルを対象にする
+    console.log("git diff HEAD~1 failed, falling back to git ls-files");
+    output = await exec("git ls-files articles/");
+  }
   return output
     .split("\n")
     .map((line) => line.trim())

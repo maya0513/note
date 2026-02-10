@@ -25,6 +25,23 @@ describe("getChangedArticles", () => {
     const files = await getChangedArticles(execMock);
     expect(files).toEqual([]);
   });
+
+  it("git diff が失敗した場合 git ls-files にフォールバックする", async () => {
+    const execMock = vi.fn()
+      .mockRejectedValueOnce(new Error("fatal: ambiguous argument 'HEAD~1'"))
+      .mockResolvedValueOnce("articles/first.md\narticles/second.md\n");
+
+    const files = await getChangedArticles(execMock);
+    expect(execMock).toHaveBeenCalledTimes(2);
+    expect(files).toEqual(["articles/first.md", "articles/second.md"]);
+  });
+
+  it(".md 以外の拡張子は除外する", async () => {
+    const execMock = vi.fn().mockResolvedValue("articles/image.png\narticles/post.md\n");
+
+    const files = await getChangedArticles(execMock);
+    expect(files).toEqual(["articles/post.md"]);
+  });
 });
 
 describe("publishAll", () => {
@@ -94,5 +111,24 @@ title: "テスト"
     const mockSession = {} as NoteSession;
     const results = await publishAll([], mockSession, vi.fn(), vi.fn());
     expect(results).toEqual([]);
+  });
+
+  it("ファイル読み込みに失敗した場合はエラーが伝播する", async () => {
+    const mockReadFile = vi.fn().mockRejectedValue(new Error("ENOENT: no such file"));
+    const mockSession = {} as NoteSession;
+
+    await expect(
+      publishAll(["articles/missing.md"], mockSession, mockReadFile, vi.fn()),
+    ).rejects.toThrow("ENOENT");
+  });
+
+  it("投稿に失敗した場合はエラーが伝播する", async () => {
+    const mockReadFile = vi.fn().mockResolvedValue(`---\ntitle: "テスト"\n---\n\n本文`);
+    const mockPostArticle = vi.fn().mockRejectedValue(new Error("投稿失敗"));
+    const mockSession = {} as NoteSession;
+
+    await expect(
+      publishAll(["articles/test.md"], mockSession, mockReadFile, mockPostArticle),
+    ).rejects.toThrow("投稿失敗");
   });
 });

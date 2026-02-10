@@ -111,6 +111,62 @@ describe("markdownToHtml", () => {
     expect(html).toBe("<p>テキスト code テキスト</p>");
   });
 
+  describe("note.com 非対応要素の処理", () => {
+    it("テーブルはそのままHTMLタグとして出力される", async () => {
+      const md = "| A | B |\n|---|---|\n| 1 | 2 |";
+      const html = await markdownToHtml(md);
+      // テーブルはnote.com非対応だが、変換自体はHTMLとして出力される
+      expect(html).toContain("<table>");
+      expect(html).toContain("<td>1</td>");
+    });
+
+    it("ネストリストを変換する", async () => {
+      const md = "- 親\n  - 子";
+      const html = await markdownToHtml(md);
+      expect(html).toContain("<ul>");
+      expect(html).toContain("<li>");
+    });
+
+    it("画像を <img> に変換する", async () => {
+      const html = await markdownToHtml("![代替テキスト](https://example.com/img.png)");
+      expect(html).toContain("<img");
+      expect(html).toContain('src="https://example.com/img.png"');
+      expect(html).toContain('alt="代替テキスト"');
+    });
+
+    it("タスクリストを変換する", async () => {
+      const html = await markdownToHtml("- [ ] 未完了\n- [x] 完了");
+      expect(html).toContain("<ul");
+      expect(html).toContain("<li");
+      expect(html).toContain("未完了");
+      expect(html).toContain("完了");
+    });
+  });
+
+  describe("エッジケース", () => {
+    it("空文字列を渡すと空文字列を返す", async () => {
+      const html = await markdownToHtml("");
+      expect(html).toBe("");
+    });
+
+    it("HTML特殊文字をエスケープする", async () => {
+      const html = await markdownToHtml("A < B & C > D");
+      expect(html).toBe("<p>A &#x3C; B &#x26; C > D</p>");
+    });
+
+    it("複数のコードブロックを正しく変換する", async () => {
+      const md = "```\nfirst\n```\n\n```\nsecond\n```";
+      const html = await markdownToHtml(md);
+      expect(html).toBe("<pre>first</pre><pre>second</pre>");
+    });
+
+    it("太字と斜体の組み合わせを変換する", async () => {
+      const html = await markdownToHtml("***太字斜体***");
+      expect(html).toContain("<b>");
+      expect(html).toContain("<em>");
+    });
+  });
+
   it("複合的なMarkdownを正しく変換する", async () => {
     const md = `## 見出し
 

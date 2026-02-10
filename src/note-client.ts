@@ -42,6 +42,13 @@ export const login = async (
     const submitButton = page.getByRole("button", { name: "ログイン" });
     await submitButton.click();
     await page.waitForURL("https://note.com/**", { timeout: 30000 });
+  } else {
+    // Cookie方式: ログイン状態を検証
+    await page.goto("https://note.com/dashboard");
+    const currentUrl = page.url();
+    if (currentUrl.includes("/login")) {
+      throw new Error("Cookie認証に失敗しました。Cookieが無効または期限切れです。");
+    }
   }
 
   return { browser, page };
