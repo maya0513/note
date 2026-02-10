@@ -33,6 +33,22 @@ const findInContexts = async (
   return null;
 };
 
+const pastePlainText = async (page: Page, text: string): Promise<void> => {
+  await page.evaluate((value: string) => navigator.clipboard.writeText(value), text);
+  await page.keyboard.press("ControlOrMeta+v");
+};
+
+const pasteRichHtml = async (page: Page, html: string): Promise<void> => {
+  await page.evaluate((value: string) => {
+    const item = new ClipboardItem({
+      "text/html": new Blob([value], { type: "text/html" }),
+      "text/plain": new Blob([value], { type: "text/plain" }),
+    });
+    return navigator.clipboard.write([item]);
+  }, html);
+  await page.keyboard.press("ControlOrMeta+v");
+};
+
 type EditableElementInfo = {
   tag: string;
   type: string | null;
@@ -172,11 +188,16 @@ export const postArticle = async (
   );
   const titleTextboxFallback = titleInput ?? await findInContexts(contexts, ['[role="textbox"]'], 3000);
   if (!titleTextboxFallback) {
-    throw new Error("タイトル入力欄が見つかりませんでした。debug ログを確認してください。");
+    console.log("[debug] title input not found, fallback to keyboard tab flow");
+    await page.mouse.click(120, 120);
+    await page.keyboard.press("Tab");
+    await pastePlainText(page, title);
+    await page.waitForTimeout(300);
+  } else {
+    await titleTextboxFallback.click();
+    await titleTextboxFallback.fill(title);
+    await page.waitForTimeout(300);
   }
-  await titleTextboxFallback.click();
-  await titleTextboxFallback.fill(title);
-  await page.waitForTimeout(300);
 
   // 本文入力: contenteditable にフォーカスしてHTML をクリップボード経由でペースト
   const editor = await findInContexts(
@@ -192,19 +213,16 @@ export const postArticle = async (
   );
   const editorFallback = editor ?? await findInContexts(contexts, ['[role="textbox"]'], 3000);
   if (!editorFallback) {
-    throw new Error("本文エディタが見つかりませんでした。debug ログを確認してください。");
+    console.log("[debug] body editor not found, fallback to keyboard tab flow");
+    await page.keyboard.press("Tab");
+    await pasteRichHtml(page, bodyHtml);
+    await page.waitForTimeout(1000);
+  } else {
+    await editorFallback.waitFor({ timeout: 10000 });
+    await editorFallback.click();
+    await pasteRichHtml(page, bodyHtml);
+    await page.waitForTimeout(1000);
   }
-  await editorFallback.waitFor({ timeout: 10000 });
-  await editorFallback.click();
-  await page.evaluate((html: string) => {
-    const item = new ClipboardItem({
-      "text/html": new Blob([html], { type: "text/html" }),
-      "text/plain": new Blob([html], { type: "text/plain" }),
-    });
-    return navigator.clipboard.write([item]);
-  }, bodyHtml);
-  await page.keyboard.press("ControlOrMeta+v");
-  await page.waitForTimeout(1000);
 
   // 「公開に進む」ボタンをクリック
   const publishSettingsButton = page.locator('button:has-text("公開に進む")');

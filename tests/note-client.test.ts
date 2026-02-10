@@ -29,6 +29,7 @@ const createMockPage = (): Page => {
     screenshot: vi.fn(),
     content: vi.fn().mockResolvedValue("<html></html>"),
     title: vi.fn().mockResolvedValue("note editor"),
+    mouse: { click: vi.fn() },
     keyboard: { press: vi.fn() },
     frames: vi.fn().mockReturnValue([]),
     close: vi.fn(),
