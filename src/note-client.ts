@@ -46,8 +46,9 @@ const collectEditableElements = async (page: Page): Promise<EditableElementInfo[
   page.evaluate(() => {
     const visited = new Set<Element>();
     const results: EditableElementInfo[] = [];
-
-    const collect = (root: ParentNode) => {
+    const roots: ParentNode[] = [document];
+    for (let i = 0; i < roots.length; i += 1) {
+      const root = roots[i];
       const elements = root.querySelectorAll("textarea, input, [contenteditable], [role='textbox']");
       for (const el of elements) {
         if (visited.has(el)) continue;
@@ -65,12 +66,10 @@ const collectEditableElements = async (page: Page): Promise<EditableElementInfo[
       for (const node of all) {
         const shadowRoot = (node as HTMLElement).shadowRoot;
         if (shadowRoot) {
-          collect(shadowRoot);
+          roots.push(shadowRoot);
         }
       }
-    };
-
-    collect(document);
+    }
     return results;
   });
 
