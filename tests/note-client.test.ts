@@ -83,7 +83,7 @@ describe("postArticle", () => {
 
     const result = await postArticle(session, "テスト記事", "<p>本文</p>");
 
-    expect(page.goto).toHaveBeenCalledWith("https://note.com/editor/new", { waitUntil: "networkidle" });
+    expect(page.goto).toHaveBeenCalledWith("https://editor.note.com/new", { waitUntil: "networkidle" });
     expect(result.url).toBe("https://note.com/testuser/n/ntest123");
   });
 });

@@ -62,7 +62,7 @@ export const postArticle = async (
 ): Promise<PublishResult> => {
   const { page } = session;
 
-  await page.goto("https://note.com/editor/new", { waitUntil: "networkidle" });
+  await page.goto("https://editor.note.com/new", { waitUntil: "networkidle" });
 
   // デバッグ: ページ状態を記録
   console.log(`[debug] editor URL: ${page.url()}`);

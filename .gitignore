@@ -34,3 +34,4 @@ playwright/.cache/
 
 # Sensitive / project-specific
 docs/task.md
+images/*
