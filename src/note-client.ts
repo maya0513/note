@@ -1,3 +1,4 @@
+import { mkdir } from "node:fs/promises";
 import { chromium, type Browser } from "playwright";
 import type { NoteSession, AuthConfig, PublishResult } from "./types.js";
 
@@ -61,7 +62,14 @@ export const postArticle = async (
 ): Promise<PublishResult> => {
   const { page } = session;
 
-  await page.goto("https://note.com/editor/new");
+  await page.goto("https://note.com/editor/new", { waitUntil: "networkidle" });
+
+  // デバッグ: ページ状態を記録
+  console.log(`[debug] editor URL: ${page.url()}`);
+  await mkdir("debug", { recursive: true });
+  await page.screenshot({ path: "debug/editor-page.png", fullPage: true });
+  const pageTitle = await page.title();
+  console.log(`[debug] page title: ${pageTitle}`);
 
   // タイトル入力（textarea）
   const titleInput = page.locator('textarea[placeholder*="タイトル"]');

@@ -22,6 +22,8 @@ const createMockPage = (): Page => {
     url: vi.fn().mockReturnValue("https://note.com/testuser/n/ntest123"),
     evaluate: vi.fn(),
     waitForTimeout: vi.fn(),
+    screenshot: vi.fn(),
+    title: vi.fn().mockResolvedValue("note editor"),
     close: vi.fn(),
   } as unknown as Page;
   return mockPage;
@@ -81,7 +83,7 @@ describe("postArticle", () => {
 
     const result = await postArticle(session, "テスト記事", "<p>本文</p>");
 
-    expect(page.goto).toHaveBeenCalledWith("https://note.com/editor/new");
+    expect(page.goto).toHaveBeenCalledWith("https://note.com/editor/new", { waitUntil: "networkidle" });
     expect(result.url).toBe("https://note.com/testuser/n/ntest123");
   });
 });
