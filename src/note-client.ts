@@ -26,7 +26,9 @@ export const login = async (
   launch: LaunchFn = defaultLaunch,
 ): Promise<NoteSession> => {
   const browser = await launch();
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    permissions: ["clipboard-read", "clipboard-write"],
+  });
 
   if (config.type === "cookie") {
     await context.addCookies(parseCookieString(config.cookie));
@@ -71,19 +73,26 @@ export const postArticle = async (
   const pageTitle = await page.title();
   console.log(`[debug] page title: ${pageTitle}`);
 
-  // タイトル入力（textarea）
+  // タイトル入力: クリックしてからクリップボード経由でペースト
   const titleInput = page.locator('textarea[placeholder*="タイトル"]');
   await titleInput.waitFor({ timeout: 30000 });
-  await titleInput.fill(title);
+  await titleInput.click();
+  await page.evaluate((text: string) => navigator.clipboard.writeText(text), title);
+  await page.keyboard.press("ControlOrMeta+v");
+  await page.waitForTimeout(500);
 
-  // 本文をエディタに挿入（contenteditable div に HTML を直接設定）
+  // 本文入力: contenteditable にフォーカスしてHTML をクリップボード経由でペースト
   const editor = page.locator('div[contenteditable="true"][role="textbox"]');
   await editor.waitFor({ timeout: 10000 });
+  await editor.click();
   await page.evaluate((html: string) => {
-    const el = document.querySelector<HTMLElement>('div[contenteditable="true"][role="textbox"]');
-    if (el) el.innerHTML = html;
+    const item = new ClipboardItem({
+      "text/html": new Blob([html], { type: "text/html" }),
+      "text/plain": new Blob([html], { type: "text/plain" }),
+    });
+    return navigator.clipboard.write([item]);
   }, bodyHtml);
-
+  await page.keyboard.press("ControlOrMeta+v");
   await page.waitForTimeout(1000);
 
   // 「公開に進む」ボタンをクリック

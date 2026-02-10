@@ -24,6 +24,7 @@ const createMockPage = (): Page => {
     waitForTimeout: vi.fn(),
     screenshot: vi.fn(),
     title: vi.fn().mockResolvedValue("note editor"),
+    keyboard: { press: vi.fn() },
     close: vi.fn(),
   } as unknown as Page;
   return mockPage;
