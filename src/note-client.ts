@@ -62,27 +62,29 @@ export const postArticle = async (
   const { page } = session;
 
   await page.goto("https://note.com/editor/new");
-  await page.waitForTimeout(2000);
 
-  // タイトル入力
-  const titleInput = page.locator('[placeholder="記事タイトル"]');
+  // タイトル入力（textarea）
+  const titleInput = page.locator('textarea[placeholder*="タイトル"]');
+  await titleInput.waitFor({ timeout: 30000 });
   await titleInput.fill(title);
 
-  // 本文をエディタに挿入（contenteditable 領域に HTML を直接設定）
+  // 本文をエディタに挿入（contenteditable div に HTML を直接設定）
+  const editor = page.locator('div[contenteditable="true"][role="textbox"]');
+  await editor.waitFor({ timeout: 10000 });
   await page.evaluate((html: string) => {
-    const editor = document.querySelector<HTMLElement>('[contenteditable="true"]');
-    if (editor) editor.innerHTML = html;
+    const el = document.querySelector<HTMLElement>('div[contenteditable="true"][role="textbox"]');
+    if (el) el.innerHTML = html;
   }, bodyHtml);
 
   await page.waitForTimeout(1000);
 
-  // 公開設定ボタンをクリック
-  const publishSettingsButton = page.getByText("公開設定");
+  // 「公開に進む」ボタンをクリック
+  const publishSettingsButton = page.locator('button:has-text("公開に進む")');
   await publishSettingsButton.click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(2000);
 
-  // 投稿ボタンをクリック
-  const publishButton = page.getByRole("button", { name: "投稿" });
+  // 「投稿する」ボタンをクリック
+  const publishButton = page.locator('button:has-text("投稿する")');
   await publishButton.click();
 
   // 公開完了を待機
