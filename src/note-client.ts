@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { chromium, type Browser, type Frame, type Locator, type Page } from "playwright";
 import type { NoteSession, AuthConfig, PublishResult } from "./types.js";
 
@@ -32,6 +32,47 @@ const findInContexts = async (
   }
   return null;
 };
+
+type EditableElementInfo = {
+  tag: string;
+  type: string | null;
+  placeholder: string | null;
+  role: string | null;
+  contenteditable: string | null;
+  class: string;
+};
+
+const collectEditableElements = async (page: Page): Promise<EditableElementInfo[]> =>
+  page.evaluate(() => {
+    const visited = new Set<Element>();
+    const results: EditableElementInfo[] = [];
+
+    const collect = (root: ParentNode) => {
+      const elements = root.querySelectorAll("textarea, input, [contenteditable], [role='textbox']");
+      for (const el of elements) {
+        if (visited.has(el)) continue;
+        visited.add(el);
+        results.push({
+          tag: el.tagName.toLowerCase(),
+          type: el.getAttribute("type"),
+          placeholder: el.getAttribute("placeholder"),
+          role: el.getAttribute("role"),
+          contenteditable: el.getAttribute("contenteditable"),
+          class: String(el.className ?? "").slice(0, 120),
+        });
+      }
+      const all = root.querySelectorAll("*");
+      for (const node of all) {
+        const shadowRoot = (node as HTMLElement).shadowRoot;
+        if (shadowRoot) {
+          collect(shadowRoot);
+        }
+      }
+    };
+
+    collect(document);
+    return results;
+  });
 
 const parseCookieString = (cookieStr: string) =>
   cookieStr.split(";").map((pair) => {
@@ -92,28 +133,25 @@ export const postArticle = async (
   const { page } = session;
 
   await page.goto("https://editor.note.com/new", { waitUntil: "networkidle" });
+  await page.waitForLoadState("domcontentloaded");
 
   // デバッグ: ページ状態を記録
   console.log(`[debug] editor URL: ${page.url()}`);
   await mkdir("debug", { recursive: true });
   await page.screenshot({ path: "debug/editor-page.png", fullPage: true });
+  await writeFile("debug/editor-page.html", await page.content(), "utf-8");
   const pageTitle = await page.title();
   console.log(`[debug] page title: ${pageTitle}`);
 
-  // デバッグ: 入力可能な要素を列挙
-  const inputInfo = await page.evaluate(() => {
-    const els = [
-      ...document.querySelectorAll("textarea, input, [contenteditable]"),
-    ];
-    return els.map((el) => ({
-      tag: el.tagName.toLowerCase(),
-      type: el.getAttribute("type"),
-      placeholder: el.getAttribute("placeholder"),
-      role: el.getAttribute("role"),
-      contenteditable: el.getAttribute("contenteditable"),
-      class: el.className?.toString().slice(0, 80),
-    }));
-  });
+  // SPAの初期化待機（読み込み遅延で入力欄が出るケースを吸収）
+  await page.waitForFunction(() => {
+    const hasEditable = document.querySelector("textarea, input, [contenteditable], [role='textbox']");
+    const hasKnownText = document.body?.innerText?.includes("公開に進む") || document.body?.innerText?.includes("投稿する");
+    return Boolean(hasEditable || hasKnownText);
+  }, { timeout: 45000 }).catch(() => undefined);
+
+  // デバッグ: 入力可能な要素を列挙（shadow DOM も探索）
+  const inputInfo = await collectEditableElements(page);
   console.log("[debug] editable elements:", JSON.stringify(inputInfo, null, 2));
   const frameInfo = page.frames().map((frame) => ({ name: frame.name(), url: frame.url() }));
   console.log("[debug] frames:", JSON.stringify(frameInfo, null, 2));
