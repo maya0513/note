@@ -9,6 +9,8 @@ const createMockLocator = (): Locator =>
     setInputFiles: vi.fn(),
     innerHTML: vi.fn(),
     waitFor: vi.fn(),
+    first: vi.fn(function () { return this; }),
+    last: vi.fn(function () { return this; }),
   }) as unknown as Locator;
 
 const createMockPage = (): Page => {
@@ -25,6 +27,7 @@ const createMockPage = (): Page => {
     screenshot: vi.fn(),
     title: vi.fn().mockResolvedValue("note editor"),
     keyboard: { press: vi.fn() },
+    frames: vi.fn().mockReturnValue([]),
     close: vi.fn(),
   } as unknown as Page;
   return mockPage;

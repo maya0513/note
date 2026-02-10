@@ -1,10 +1,37 @@
 import { mkdir } from "node:fs/promises";
-import { chromium, type Browser } from "playwright";
+import { chromium, type Browser, type Frame, type Locator, type Page } from "playwright";
 import type { NoteSession, AuthConfig, PublishResult } from "./types.js";
 
 type LaunchFn = () => Promise<Browser>;
 
 const defaultLaunch: LaunchFn = () => chromium.launch({ headless: true });
+
+type EditableContext = Pick<Page, "locator" | "getByRole"> | Pick<Frame, "locator" | "getByRole">;
+
+const waitVisible = async (locator: Locator, timeout: number): Promise<boolean> => {
+  try {
+    await locator.waitFor({ state: "visible", timeout });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const findInContexts = async (
+  contexts: EditableContext[],
+  selectors: string[],
+  timeout: number,
+): Promise<Locator | null> => {
+  for (const context of contexts) {
+    for (const selector of selectors) {
+      const candidate = context.locator(selector).first();
+      if (await waitVisible(candidate, timeout)) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+};
 
 const parseCookieString = (cookieStr: string) =>
   cookieStr.split(";").map((pair) => {
@@ -73,18 +100,65 @@ export const postArticle = async (
   const pageTitle = await page.title();
   console.log(`[debug] page title: ${pageTitle}`);
 
-  // タイトル入力: クリックしてからクリップボード経由でペースト
-  const titleInput = page.locator('textarea[placeholder*="タイトル"]');
-  await titleInput.waitFor({ timeout: 30000 });
-  await titleInput.click();
-  await page.evaluate((text: string) => navigator.clipboard.writeText(text), title);
-  await page.keyboard.press("ControlOrMeta+v");
-  await page.waitForTimeout(500);
+  // デバッグ: 入力可能な要素を列挙
+  const inputInfo = await page.evaluate(() => {
+    const els = [
+      ...document.querySelectorAll("textarea, input, [contenteditable]"),
+    ];
+    return els.map((el) => ({
+      tag: el.tagName.toLowerCase(),
+      type: el.getAttribute("type"),
+      placeholder: el.getAttribute("placeholder"),
+      role: el.getAttribute("role"),
+      contenteditable: el.getAttribute("contenteditable"),
+      class: el.className?.toString().slice(0, 80),
+    }));
+  });
+  console.log("[debug] editable elements:", JSON.stringify(inputInfo, null, 2));
+  const frameInfo = page.frames().map((frame) => ({ name: frame.name(), url: frame.url() }));
+  console.log("[debug] frames:", JSON.stringify(frameInfo, null, 2));
+
+  const contexts: EditableContext[] = [page, ...page.frames()];
+
+  // タイトル入力
+  const titleInput = await findInContexts(
+    contexts,
+    [
+      'textarea[placeholder*="タイトル"]',
+      'input[placeholder*="タイトル"]',
+      '[contenteditable="true"][data-placeholder*="タイトル"]',
+      '[aria-label*="タイトル"]',
+      'textarea[placeholder*="title" i]',
+      'input[placeholder*="title" i]',
+    ],
+    3000,
+  );
+  const titleTextboxFallback = titleInput ?? await findInContexts(contexts, ['[role="textbox"]'], 3000);
+  if (!titleTextboxFallback) {
+    throw new Error("タイトル入力欄が見つかりませんでした。debug ログを確認してください。");
+  }
+  await titleTextboxFallback.click();
+  await titleTextboxFallback.fill(title);
+  await page.waitForTimeout(300);
 
   // 本文入力: contenteditable にフォーカスしてHTML をクリップボード経由でペースト
-  const editor = page.locator('div[contenteditable="true"][role="textbox"]');
-  await editor.waitFor({ timeout: 10000 });
-  await editor.click();
+  const editor = await findInContexts(
+    contexts,
+    [
+      'div[contenteditable="true"][role="textbox"]',
+      '[contenteditable="true"][data-placeholder*="本文"]',
+      '[contenteditable="true"][aria-label*="本文"]',
+      'div[contenteditable="true"]',
+      '[role="textbox"][contenteditable="true"]',
+    ],
+    3000,
+  );
+  const editorFallback = editor ?? await findInContexts(contexts, ['[role="textbox"]'], 3000);
+  if (!editorFallback) {
+    throw new Error("本文エディタが見つかりませんでした。debug ログを確認してください。");
+  }
+  await editorFallback.waitFor({ timeout: 10000 });
+  await editorFallback.click();
   await page.evaluate((html: string) => {
     const item = new ClipboardItem({
       "text/html": new Blob([html], { type: "text/html" }),
