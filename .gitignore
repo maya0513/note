@@ -35,4 +35,4 @@ playwright/.cache/
 # Sensitive / project-specific
 docs/task.md
 images/*
-debug-screenshots/*
+# debug-screenshots/*
