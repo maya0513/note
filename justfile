@@ -1,11 +1,14 @@
+build:
+    pnpm build
+
 test:
     pnpm test
 
 test-watch:
     pnpm test:watch
 
-lint:
+lint: build
     pnpm lint
 
-lint-fix:
+lint-fix: build
     pnpm lint:fix

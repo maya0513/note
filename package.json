@@ -3,16 +3,20 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').writeFileSync('dist/package.json','{\\\"type\\\":\\\"commonjs\\\"}\\n')\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "textlint articles/**/*.md",
-    "lint:fix": "textlint --fix articles/**/*.md"
+    "lint": "textlint --rulesdir dist/textlint-rules articles/**/*.md",
+    "lint:fix": "textlint --rulesdir dist/textlint-rules --fix articles/**/*.md"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.28.2",
   "devDependencies": {
+    "@textlint/kernel": "^15.5.1",
+    "@textlint/textlint-plugin-markdown": "^15.5.1",
+    "@textlint/types": "^15.5.1",
     "@types/node": "^25.2.2",
     "textlint": "^15.5.1",
     "textlint-rule-preset-ja-spacing": "^2.4.3",

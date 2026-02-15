@@ -8,6 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@textlint/kernel':
+        specifier: ^15.5.1
+        version: 15.5.1
+      '@textlint/textlint-plugin-markdown':
+        specifier: ^15.5.1
+        version: 15.5.1
+      '@textlint/types':
+        specifier: ^15.5.1
+        version: 15.5.1
       '@types/node':
         specifier: ^25.2.2
         version: 25.2.2
