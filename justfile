@@ -4,5 +4,8 @@ test:
 test-watch:
     pnpm test:watch
 
-publish:
-    pnpm publish-articles
+lint:
+    pnpm lint
+
+lint-fix:
+    pnpm lint:fix

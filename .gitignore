@@ -27,12 +27,5 @@ Desktop.ini
 *.log
 logs/
 
-# Playwright
-test-results/
-playwright-report/
-playwright/.cache/
-
 # Sensitive / project-specific
-docs/task.md
-images/*
-# debug-screenshots/*
+
