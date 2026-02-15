@@ -1,5 +1,7 @@
 # note-publisher
 
+**注意: 動きません！**
+
 `articles/` に Markdown ファイルを置いて push すると、GitHub Actions 経由で note.com に記事を自動公開する。
 
 ## セットアップ
